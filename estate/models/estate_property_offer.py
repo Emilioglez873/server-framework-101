@@ -46,7 +46,7 @@ class EstatePropertyOffer(models.Model):
 
     def action_accept(self):
         for record in self:
-            if record.property_id.estate == "sold":
+            if record.property_id.state == "sold":
                 raise UserError(_("Cannot accept offer for a sold property"))
             record.status = "accepted"
             record.property_id.buyer_id = record.partner_id
@@ -56,3 +56,13 @@ class EstatePropertyOffer(models.Model):
     def action_refuse(self):
         for record in self:
             record.status = "refused"
+
+    @api.model
+    def create(self, vals):
+        existing_offers = self.search([("property_id", "=", vals["property_id"])])
+        for offer in existing_offers:
+            if vals["price"] <= offer.price:
+                raise UserError(_("The offer amount must be higher than existing offers"))
+        property_record = self.env["estate.property"].browse(vals["property_id"])
+        property_record.state = "offer_received"
+        return super().create(vals)
